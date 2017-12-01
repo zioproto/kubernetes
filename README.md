@@ -29,7 +29,7 @@ See our documentation on [kubernetes.io].
 
 Try our [interactive tutorial].
 
-Take a free course on [Scalable Microservices with Kubernetes].
+Take a free course on [Introduction to Kubernetes] and [Scalable Microservices with Kubernetes].
 
 ## To start developing Kubernetes
 
@@ -77,6 +77,7 @@ That said, if you have questions, reach out to us
 [GoDoc]: https://godoc.org/k8s.io/kubernetes
 [GoDoc Widget]: https://godoc.org/k8s.io/kubernetes?status.svg
 [interactive tutorial]: http://kubernetes.io/docs/tutorials/kubernetes-basics
+[Introduction to Kubernetes]: https://www.edx.org/course/introduction-kubernetes-linuxfoundationx-lfs158x
 [kubernetes.io]: http://kubernetes.io
 [Scalable Microservices with Kubernetes]: https://www.udacity.com/course/scalable-microservices-with-kubernetes--ud615
 [Submit Queue]: http://submit-queue.k8s.io/#/ci
