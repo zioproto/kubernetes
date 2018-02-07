@@ -3561,8 +3561,9 @@ const (
 )
 
 type NodeAddress struct {
-	Type    NodeAddressType
-	Address string
+	Type      NodeAddressType
+	Address   string
+	IPVersion int
 }
 
 // NodeResources is an object for conveying resource information about a node.

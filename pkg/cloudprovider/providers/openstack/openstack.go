@@ -452,8 +452,9 @@ func nodeAddresses(srv *servers.Server) ([]v1.NodeAddress, error) {
 	addrs := []v1.NodeAddress{}
 
 	type Address struct {
-		IPType string `mapstructure:"OS-EXT-IPS:type"`
-		Addr   string
+		IPType    string `mapstructure:"OS-EXT-IPS:type"`
+		Addr      string
+		IPVersion int `mapstructure:"version"`
 	}
 
 	var addresses map[string][]Address
@@ -473,8 +474,9 @@ func nodeAddresses(srv *servers.Server) ([]v1.NodeAddress, error) {
 
 			v1helper.AddToNodeAddresses(&addrs,
 				v1.NodeAddress{
-					Type:    addressType,
-					Address: props.Addr,
+					Type:      addressType,
+					Address:   props.Addr,
+					IPVersion: props.IPVersion,
 				},
 			)
 		}
@@ -511,7 +513,7 @@ func getAddressesByName(client *gophercloud.ServiceClient, name types.NodeName) 
 	return nodeAddresses(srv)
 }
 
-func getAddressByName(client *gophercloud.ServiceClient, name types.NodeName) (string, error) {
+func getAddressByName(client *gophercloud.ServiceClient, name types.NodeName, int IPVersion) (string, error) {
 	addrs, err := getAddressesByName(client, name)
 	if err != nil {
 		return "", err
@@ -521,7 +523,9 @@ func getAddressByName(client *gophercloud.ServiceClient, name types.NodeName) (s
 
 	for _, addr := range addrs {
 		if addr.Type == v1.NodeInternalIP {
-			return addr.Address, nil
+			if addr.IPversion == IPversion {
+				return addr.Address, nil
+			}
 		}
 	}
 

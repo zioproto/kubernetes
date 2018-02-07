@@ -146,7 +146,12 @@ func (r *Routes) CreateRoute(ctx context.Context, clusterName string, nameHint s
 
 	onFailure := newCaller()
 
-	addr, err := getAddressByName(r.compute, route.TargetNode)
+	IP, net, _ := net.ParseCIDR(route.DestinationCIDR)
+	int IPVersion
+	if IsIPv4(IP) IPVersion = 4
+	if IsIPv6(IP) IPVersion = 6
+
+	addr, err := getAddressByName(r.compute, route.TargetNode, IPVersion)
 	if err != nil {
 		return err
 	}
