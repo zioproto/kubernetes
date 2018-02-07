@@ -511,23 +511,6 @@ func getAddressesByName(client *gophercloud.ServiceClient, name types.NodeName) 
 	return nodeAddresses(srv)
 }
 
-func getAddressByName(client *gophercloud.ServiceClient, name types.NodeName) (string, error) {
-	addrs, err := getAddressesByName(client, name)
-	if err != nil {
-		return "", err
-	} else if len(addrs) == 0 {
-		return "", ErrNoAddressFound
-	}
-
-	for _, addr := range addrs {
-		if addr.Type == v1.NodeInternalIP {
-			return addr.Address, nil
-		}
-	}
-
-	return addrs[0].Address, nil
-}
-
 // getAttachedInterfacesByID returns the node interfaces of the specified instance.
 func getAttachedInterfacesByID(client *gophercloud.ServiceClient, serviceID string) ([]attachinterfaces.Interface, error) {
 	var interfaces []attachinterfaces.Interface

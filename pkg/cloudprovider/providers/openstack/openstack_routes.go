@@ -19,13 +19,16 @@ package openstack
 import (
 	"context"
 	"errors"
+	"net"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
 	neutronports "github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 
 	"github.com/golang/glog"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/cloudprovider"
 )
@@ -146,12 +149,32 @@ func (r *Routes) CreateRoute(ctx context.Context, clusterName string, nameHint s
 
 	onFailure := newCaller()
 
-	addr, err := getAddressByName(r.compute, route.TargetNode)
+	IP, _, _ := net.ParseCIDR(route.DestinationCIDR)
+	CIDRisV4 := govalidator.IsIPv4(IP.String())
+	CIDRisV6 := govalidator.IsIPv6(IP.String())
+	addrs, err := getAddressesByName(r.compute, route.TargetNode)
+
 	if err != nil {
 		return err
+	} else if len(addrs) == 0 {
+		return ErrNoAddressFound
 	}
 
-	glog.V(4).Infof("Using nexthop %v for node %v", addr, route.TargetNode)
+	var nexthop string = ""
+
+	for _, addr := range addrs {
+		if addr.Type == v1.NodeInternalIP {
+			if (govalidator.IsIPv4(addr.Address) && CIDRisV4) || (govalidator.IsIPv6(addr.Address) && CIDRisV6) {
+				nexthop = addr.Address
+				break
+			}
+		}
+	}
+	if nexthop == "" {
+		return ErrNoAddressFound
+	}
+
+	glog.V(4).Infof("Using nexthop %v for node %v", nexthop, route.TargetNode)
 
 	router, err := routers.Get(r.network, r.opts.RouterID).Extract()
 	if err != nil {
@@ -161,7 +184,7 @@ func (r *Routes) CreateRoute(ctx context.Context, clusterName string, nameHint s
 	routes := router.Routes
 
 	for _, item := range routes {
-		if item.DestinationCIDR == route.DestinationCIDR && item.NextHop == addr {
+		if item.DestinationCIDR == route.DestinationCIDR && item.NextHop == nexthop {
 			glog.V(4).Infof("Skipping existing route: %v", route)
 			return nil
 		}
@@ -169,7 +192,7 @@ func (r *Routes) CreateRoute(ctx context.Context, clusterName string, nameHint s
 
 	routes = append(routes, routers.Route{
 		DestinationCIDR: route.DestinationCIDR,
-		NextHop:         addr,
+		NextHop:         nexthop,
 	})
 
 	unwind, err := updateRoutes(r.network, router, routes)
@@ -179,7 +202,7 @@ func (r *Routes) CreateRoute(ctx context.Context, clusterName string, nameHint s
 	defer onFailure.call(unwind)
 
 	// get the port of addr on target node.
-	portID, err := getPortIDByIP(r.compute, route.TargetNode, addr)
+	portID, err := getPortIDByIP(r.compute, route.TargetNode, nexthop)
 	if err != nil {
 		return err
 	}
@@ -219,9 +242,30 @@ func (r *Routes) DeleteRoute(ctx context.Context, clusterName string, route *clo
 
 	onFailure := newCaller()
 
-	addr, err := getAddressByName(r.compute, route.TargetNode)
+	IP, _, _ := net.ParseCIDR(route.DestinationCIDR)
+	CIDRisV4 := govalidator.IsIPv4(IP.String())
+	CIDRisV6 := govalidator.IsIPv6(IP.String())
+
+	addrs, err := getAddressesByName(r.compute, route.TargetNode)
+
 	if err != nil {
 		return err
+	} else if len(addrs) == 0 {
+		return ErrNoAddressFound
+	}
+
+	var nexthop string = ""
+
+	for _, addr := range addrs {
+		if addr.Type == v1.NodeInternalIP {
+			if (govalidator.IsIPv4(addr.Address) && CIDRisV4) || (govalidator.IsIPv6(addr.Address) && CIDRisV6) {
+				nexthop = addr.Address
+				break
+			}
+		}
+	}
+	if nexthop == "" {
+		return ErrNoAddressFound
 	}
 
 	router, err := routers.Get(r.network, r.opts.RouterID).Extract()
@@ -232,7 +276,7 @@ func (r *Routes) DeleteRoute(ctx context.Context, clusterName string, route *clo
 	routes := router.Routes
 	index := -1
 	for i, item := range routes {
-		if item.DestinationCIDR == route.DestinationCIDR && item.NextHop == addr {
+		if item.DestinationCIDR == route.DestinationCIDR && item.NextHop == nexthop {
 			index = i
 			break
 		}
@@ -253,8 +297,8 @@ func (r *Routes) DeleteRoute(ctx context.Context, clusterName string, route *clo
 	}
 	defer onFailure.call(unwind)
 
-	// get the port of addr on target node.
-	portID, err := getPortIDByIP(r.compute, route.TargetNode, addr)
+	// get the port of nexthop on target node.
+	portID, err := getPortIDByIP(r.compute, route.TargetNode, nexthop)
 	if err != nil {
 		return err
 	}
