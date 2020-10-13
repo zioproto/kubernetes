@@ -457,6 +457,7 @@ func (g *Cloud) ensureInternalFirewall(svc *v1.Service, fwName, fwDesc string, s
 		Network:      g.networkURL,
 		SourceRanges: sourceRanges,
 		TargetTags:   targetTags,
+                LogConfig:    //TODO
 		Allowed: []*compute.FirewallAllowed{
 			{
 				IPProtocol: strings.ToLower(string(protocol)),

@@ -949,7 +949,7 @@ func createForwardingRule(s CloudForwardingRuleService, name, serviceName, regio
 }
 
 func (g *Cloud) createFirewall(svc *v1.Service, name, region, desc string, sourceRanges utilnet.IPNetSet, ports []v1.ServicePort, hosts []*gceInstance) error {
-	firewall, err := g.firewallObject(name, region, desc, sourceRanges, ports, hosts)
+	firewall, err := g.firewallObject(name, region, desc, sourceRanges, ports, hosts, svc.Annotations[xxxx] )
 	if err != nil {
 		return err
 	}
@@ -985,7 +985,7 @@ func (g *Cloud) updateFirewall(svc *v1.Service, name, region, desc string, sourc
 	return nil
 }
 
-func (g *Cloud) firewallObject(name, region, desc string, sourceRanges utilnet.IPNetSet, ports []v1.ServicePort, hosts []*gceInstance) (*compute.Firewall, error) {
+func (g *Cloud) firewallObject(name, region, desc string, sourceRanges utilnet.IPNetSet, ports []v1.ServicePort, hosts []*gceInstance, logConfig bool) (*compute.Firewall, error) {
 	allowedPorts := make([]string, len(ports))
 	for ix := range ports {
 		allowedPorts[ix] = strconv.Itoa(int(ports[ix].Port))
@@ -999,6 +999,7 @@ func (g *Cloud) firewallObject(name, region, desc string, sourceRanges utilnet.I
 			return nil, fmt.Errorf("no node tags supplied and also failed to parse the given lists of hosts for tags. Abort creating firewall rule")
 		}
 	}
+        firewallLogConfig := &compute.Firewall.FirewallLogConfig
 
 	firewall := &compute.Firewall{
 		Name:         name,
@@ -1006,6 +1007,7 @@ func (g *Cloud) firewallObject(name, region, desc string, sourceRanges utilnet.I
 		Network:      g.networkURL,
 		SourceRanges: sourceRanges.StringSlice(),
 		TargetTags:   hostTags,
+                LogConfig:    logConfig
 		Allowed: []*compute.FirewallAllowed{
 			{
 				// TODO: Make this more generic. Currently this method is only
